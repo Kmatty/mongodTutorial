@@ -3,6 +3,8 @@ package org.matty;
 import static com.mongodb.client.model.Filters.*;
 import static java.util.Arrays.asList;
 import static org.matty.Helpers.printJson;
+import static com.mongodb.client.model.Projections.*;
+import static com.mongodb.client.model.Sorts.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,7 @@ import com.mongodb.client.model.Projections;
 public class MongoTutorial {
 	
 	private static MongoClient client = new MongoClient();
-	//This is a nother way to create a MongoClient 
+	//This is another way to create a MongoClient 
 	//public static MongoClient client = new MongoClient(new ServerAddress("localhost",27017));
 	private static MongoDatabase db = client.getDatabase("employees");
 	private static MongoCollection<Document> coll = db.getCollection("employee");
@@ -37,6 +39,8 @@ public class MongoTutorial {
 	private static String str4 = "********  Next part is printing all document in employee collection  ********";
 	private static String str5 = "**********************  Next part is about filtering  ***********************";
 	private static String str6 = "*************  Next part is about projection(Include/Exclude)  **************";
+	private static String str7 = "******  Next part is about Excluding and Including at the same time  ********";
+	private static String str8 = "*********************  Next part is about sorting ***************************";
 	
     //Bson filter = new Document("gender","male");
     //Bson filter = new Document("age", new Document("$gt", 30));
@@ -70,10 +74,10 @@ public class MongoTutorial {
         		.append("gender", "male")
         		.append("age", "44")
 				.append("address", new Document()
-						.append("street", "Boelijn")
-						.append("houseNo", "88")
-						.append("zipcode", "1319CS")	
-						.append("city", "ALmere"));
+						.append("street", "STREETNAME")
+						.append("houseNo", "100")
+						.append("zipcode", "1234AA")	
+						.append("city", "AAA"));
 		
         Document doc2 = new Document()
         		.append("firstName", "Emily")
@@ -81,10 +85,10 @@ public class MongoTutorial {
         		.append("gender", "female")
         		.append("age", "5")
     			.append("address", new Document()
-						.append("street", "Boelijn")
-						.append("houseNo", "88")
-						.append("zipcode", "1319CS")	
-						.append("city", "ALmere"));
+    					.append("street", "STREETNAME")
+						.append("houseNo", "100")
+						.append("zipcode", "1234AA")	
+						.append("city", "AAA"));
         
         Document doc3 = new Document()
         		.append("firstName", "Anthony")
@@ -92,10 +96,10 @@ public class MongoTutorial {
         		.append("gender", "male")
         		.append("age", "3")
     			.append("address", new Document()
-						.append("street", "Boelijn")
-						.append("houseNo", "88")
-						.append("zipcode", "1319CS")	
-						.append("city", "ALmere"));
+    					.append("street", "STREETNAME")
+						.append("houseNo", "100")
+						.append("zipcode", "1234AA")	
+						.append("city", "AAA"));
         
         //Drop collection (employee)
         coll.drop();
@@ -155,27 +159,58 @@ public class MongoTutorial {
          */
         Bson projection1 = new Document("age",0);
         //Bson projection1 = new Document("age",0).append("lastName",0);
-        List<Document> allDocs1 = fetchDocuments(projection1, filter);
-        printDocs(allDocs1);
+        List<Document> docs1 = fetchDocuments(projection1, filter);
+        printDocs(docs1);
         
         /*
          * The 1 in the "new Document("gender",1)" means include, in other words show only this field in the results,
          * in this case is "gender"
         */
         Bson projection2 = new Document("gender",1);
-        List<Document> allDocs2= fetchDocuments(projection2, filter);
-        printDocs(allDocs2);
+        List<Document> docs2= fetchDocuments(projection2, filter);
+        printDocs(docs2);
         
         /*
          * You can use the builder "Projections" to do the include/exclude in place of using row "Document".
          * for example the next will exclude lastName, _id, firstName from the result.
          */
         Bson projection3 = Projections.exclude("lastName","_id","firstName");
-        List<Document> allDocs3= fetchDocuments(projection3, filter);
-        printDocs(allDocs3);
+        List<Document> docs3= fetchDocuments(projection3, filter);
+        printDocs(docs3);
+        
+        printDecoration(str7);
+        /*
+         * You can use both exclude and include in the same projection. for example the next projection will
+         * Exclude "_id" from result and include "firstName","lastName" and "age" in the result.
+         */
+        Bson projection4 = Projections.fields(Projections.include("firstName","lastName","age"),
+        									Projections.exclude("_id"));
+        //Or use the static way
+        //Bson projection4 = fields(include("firstName","lastName","age"),exclude("_id"));
+        List<Document> docs4= fetchDocuments(projection4, filter);
+        printDocs(docs4);
+        
+        ///////////////////////////////////////   Sorting   /////////////////////////////////////////// 
+        //1 means ascending and -1 descending, we are not using filter in the find() method, so it'll show all documents.
+        printDecoration(str8);
+        //Bson sort = new Document("firstName",1);
+        //Or by using the static way
+        //Bson sort = ascending("firstName");
+        //Bson sort = descending("firstName","lastName");
+        
+        //To combine ascending and descending we must use the "orderBy"
+        //skip is used to skip the first x docs(in this case x=1), limit is to limit result to x docs(in this case x=2)
+        Bson sort = orderBy(ascending("firstName"),descending("age"));
+        List<Document> docs5 = coll.find()
+        							.projection(projection4)
+        							.sort(sort)
+        							.skip(1)
+        							.limit(2)
+        							.into(new ArrayList<Document>());
+        printDocs(docs5);       
     }
     
-    //////////////////////////////////////  Some helper functions  /////////////////////////////////////////
+    //////////////////////////////////////  Helper functions  /////////////////////////////////////////
     private static List<Document> fetchDocuments(Bson projection, Bson filter){
     	MongoDatabase db = new MongoClient().getDatabase("employees");
     	MongoCollection<Document> coll = db.getCollection("employee");
